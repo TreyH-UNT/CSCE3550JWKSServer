@@ -12,7 +12,7 @@ app = Flask(__name__)
 keys = []
 
 
-def generate_key_pair():
+def generate_key_pair(): # generate key pair and store in keys
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048
@@ -37,14 +37,14 @@ def int_to_base64url(n):
 
 
 # JWT issuance
-@app.route('/auth', methods=['POST'])
+@app.route('/auth', methods=['POST']) #auth endpoint
 def auth():
-    if request.method != 'POST':
+    if request.method != 'POST': #if bad method
         abort(405)
 
     key_to_use = None
 
-    if 'expired' in request.args:
+    if 'expired' in request.args: #check if expired
         key_to_use = next((key for key in keys if time.time() > key["expiry"]), None)
         if not key_to_use:
             generate_key_pair()
@@ -55,15 +55,15 @@ def auth():
     if not key_to_use:
         return jsonify({"error": "No keys available"}), 500
 
-    encoded_token = jwt.encode({"user": "test", "exp": key_to_use["expiry"]}, key_to_use["private_key"],
+    encoded_token = jwt.encode({"user": "test", "exp": key_to_use["expiry"]}, key_to_use["private_key"], #encoding
                                algorithm="RS256", headers={"kid": key_to_use["kid"]})
     return jsonify({"token": encoded_token.decode('utf-8')})
 
 
 # JWKS endpoint
-@app.route('/.well-known/jwks.json', methods=['GET'])
+@app.route('/.well-known/jwks.json', methods=['GET']) #jwks endpoint
 def jwks():
-    if request.method != 'GET':
+    if request.method != 'GET': #if bad method
         abort(405)
     return jsonify({
         "keys": [
@@ -71,12 +71,12 @@ def jwks():
                 "kty": "RSA",
                 "kid": key["kid"],
                 "use": "sig",
-                "n": int_to_base64url(key["public_key"].public_numbers().n),
+                "n": int_to_base64url(key["public_key"].public_numbers().n), #converting to base64
                 "e": int_to_base64url(key["public_key"].public_numbers().e)
             } for key in keys if time.time() <= key["expiry"]
         ]
     })
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": #run main
     app.run(port=8080)
